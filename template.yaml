@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Keep any Git repo in sync with your CodeCommit repo.
+
+Resources:
+  AwsCodeCommitSync:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: aws-codecommit-sync
+      PackageType: Image
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
+      Events:
+        AllCodeCommitEvents:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.codecommit
+              account:
+                - !Ref AWS::AccountId
+              region:
+                - !Ref AWS::Region
+              resources:
+                - !Sub arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${SourceCodeCommitRepoName}
+              detail:
+                repositoryName:
+                  - !Ref SourceCodeCommitRepoName
+      Environment:
+        Variables:
+          SRC_REPO: !Ref SourceCodeCommitRepoHttpsGitCloneUrl
+          SRC_USER: !Ref SourceCodeCommitRepoGitUsername
+          SRC_PASS: !Ref SourceCodeCommitRepoGitPassword
+          DEST_REPO: !Ref DestinationRepoHttpsGitPushUrl
+          DEST_USER: !Ref DestinationRepoGitUsername
+          DEST_PASS: !Ref DestinationRepoGitPassword
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
+
+Parameters:
+  SourceCodeCommitRepoName:
+    Description: "The name the source CodeCommit repo. Example: source-repo"
+    Type: String
+  SourceCodeCommitRepoHttpsGitCloneUrl:
+    Description: |
+      The HTTPS Git clone URL of the source CodeCommit repo.
+      Example: https://git-codecommit.ap-south-1.amazonaws.com/v1/repos/source-repo
+    Type: String
+    AllowedPattern: ^https://.*$
+    ConstraintDescription: This value must start with "https://"
+  SourceCodeCommitRepoGitUsername:
+    Description: |
+      The Git username used to clone the source CodeCommit repo.
+      Example: iam-user-at-123456789012
+    Type: String
+  SourceCodeCommitRepoGitPassword:
+    Description: The Git password used to clone the source CodeCommit repo.
+    Type: String
+    NoEcho: true
+  DestinationRepoHttpsGitPushUrl:
+    Description: |
+      The HTTPS Git push URL of the destination repo.
+      Examples:
+      * https://git-codecommit.us-east-2.amazonaws.com/v1/repos/destination-repo
+      * https://github.com/username/destination-repo.git
+    Type: String
+    AllowedPattern: ^https://.*$
+    ConstraintDescription: This value must start with "https://"
+  DestinationRepoGitUsername:
+    Description: The Git username used to push to the destination repo.
+    Type: String
+  DestinationRepoGitPassword:
+    Description: |
+      The Git password used to push to the destination repo.
+      Or a personal access token with "repo" scope if destination is GitHub.
+    Type: String
+    NoEcho: true
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Source CodeCommit Repo
+        Parameters:
+          - SourceCodeCommitRepoName
+          - SourceCodeCommitRepoHttpsGitCloneUrl
+          - SourceCodeCommitRepoGitUsername
+          - SourceCodeCommitRepoGitPassword
+      - Label:
+          default: Destination Git Repo
+        Parameters:
+          - DestinationRepoHttpsGitPushUrl
+          - DestinationRepoGitUsername
+          - DestinationRepoGitPassword
+    ParameterLabels:
+      SourceCodeCommitRepoName:
+        default: "Source CodeCommit repo's name:"
+      SourceCodeCommitRepoHttpsGitCloneUrl:
+        default: "Source CodeCommit repo's HTTPS Git clone URL:"
+      SourceCodeCommitRepoGitUsername:
+        default: "Source CodeCommit repo's Git username:"
+      SourceCodeCommitRepoGitPassword:
+        default: "Source CodeCommit repo's Git password:"
+      DestinationRepoHttpsGitPushUrl:
+        default: "Destination repo's HTTPS Git push URL:"
+      DestinationRepoGitUsername:
+        default: "Destination repo's Git username:"
+      DestinationRepoGitPassword:
+        default: "Destination repo's Git password:"
